@@ -21,7 +21,7 @@ const AVATAR_COLORS = [
   { bg: "#D1FAE5", fg: "#065F46" },
   { bg: "#E0E7FF", fg: "#3730A3" },
 ];
-const [visibleCount, setVisibleCount] = useState(10);
+
 
 function Avatar({ name, size = 52 }: { name: string; size?: number }) {
   const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
@@ -44,6 +44,7 @@ export default function CustomerDetail() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(10);
   const [modal, setModal] = useState<"credit" | "payment" | null>(null);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");

@@ -57,6 +57,14 @@ export default function BillingPage() {
     }).filter(Boolean));
   };
 
+  const setQty = (itemId: number, val: number) => {
+    if (val <= 0) {
+      removeFromCart(itemId);
+      return;
+    }
+    setCart(prev => prev.map(c => c.item.id === itemId ? { ...c, quantity: val } : c));
+  };
+
   const removeFromCart = (itemId: number) => setCart(prev => prev.filter(c => c.item.id !== itemId));
 
   const updatePrice = (itemId: number, price: number) => {
@@ -116,13 +124,9 @@ export default function BillingPage() {
         <p style={{ color: "#9CA3AF", fontSize: 15, margin: "0 0 24px", textAlign: "center" }}>Sale recorded successfully</p>
 
         <div style={{ background: "white", borderRadius: 24, border: "1.5px solid #EEEEE8", padding: "20px", width: "100%", marginBottom: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-            <p style={{ color: "#9CA3AF", fontWeight: 600, margin: 0 }}>Total Collected</p>
-            <p style={{ fontWeight: 900, fontSize: 20, color: "#111827", margin: 0 }}>₹{billDone.total.toFixed(0)}</p>
-          </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <p style={{ color: "#9CA3AF", fontWeight: 600, margin: 0 }}>Your Profit</p>
-            <p style={{ fontWeight: 900, fontSize: 20, color: "#16A34A", margin: 0 }}>₹{billDone.profit.toFixed(0)}</p>
+            <p style={{ color: "#9CA3AF", fontWeight: 600, margin: 0 }}>Total Collected</p>
+            <p style={{ fontWeight: 900, fontSize: 24, color: "#111827", margin: 0 }}>₹{billDone.total.toFixed(0)}</p>
           </div>
         </div>
 
@@ -155,7 +159,7 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* Search sticky */}
+      {/* Sticky search */}
       <div style={{ position: "sticky", top: 0, zIndex: 100, background: "#065f46", padding: "10px 16px", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
         <div style={{ position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 14, padding: "11px 14px" }}>
@@ -223,11 +227,12 @@ export default function BillingPage() {
               Cart ({cart.length} items)
             </p>
 
-            {/* Cart items */}
             <div style={{ background: "white", borderRadius: 24, border: "1.5px solid #EEEEE8", boxShadow: "0 2px 16px rgba(0,0,0,0.05)", overflow: "hidden", marginBottom: 12 }}>
               {cart.map((c, idx) => (
                 <div key={c.item.id}>
                   <div style={{ padding: "14px 16px" }}>
+
+                    {/* Item name row */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontWeight: 700, fontSize: 14, color: "#111827", margin: "0 0 2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -235,33 +240,57 @@ export default function BillingPage() {
                         </p>
                         <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>{c.item.category}</p>
                       </div>
-                      <button onClick={() => removeFromCart(c.item.id)} style={{ width: 28, height: 28, borderRadius: 8, background: "#FEF2F2", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, marginLeft: 8 }}>
+                      <button
+                        onClick={() => removeFromCart(c.item.id)}
+                        style={{ width: 28, height: 28, borderRadius: 8, background: "#FEF2F2", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, marginLeft: 8 }}
+                      >
                         <Trash2 size={12} color="#EF4444" />
                       </button>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ display: "flex", alignItems: "center", background: "#F9FAFB", borderRadius: 12, overflow: "hidden", border: "1.5px solid #EEEEE8" }}>
-                        <button onClick={() => updateQty(c.item.id, -1)} style={{ width: 34, height: 34, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Minus size={14} color="#6B7280" />
+
+                    {/* Qty + price row */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+
+                      {/* Qty — typeable with +/- */}
+                      <div style={{ display: "flex", alignItems: "center", background: "#F9FAFB", borderRadius: 12, overflow: "hidden", border: "1.5px solid #EEEEE8", flexShrink: 0 }}>
+                        <button
+                          onClick={() => updateQty(c.item.id, -1)}
+                          style={{ width: 32, height: 36, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          <Minus size={13} color="#6B7280" />
                         </button>
-                        <span style={{ padding: "0 8px", fontWeight: 800, fontSize: 14, color: "#111827", minWidth: 32, textAlign: "center" }}>{c.quantity}</span>
-                        <button onClick={() => updateQty(c.item.id, 1)} style={{ width: 34, height: 34, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Plus size={14} color="#6B7280" />
+                        <input
+                          type="number"
+                          value={c.quantity}
+                          onChange={e => setQty(c.item.id, Number(e.target.value))}
+                          style={{ width: 40, background: "none", border: "none", outline: "none", textAlign: "center", fontWeight: 800, fontSize: 14, color: "#111827", fontFamily: "var(--font-jakarta), sans-serif", padding: 0 }}
+                        />
+                        <button
+                          onClick={() => updateQty(c.item.id, 1)}
+                          style={{ width: 32, height: 36, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          <Plus size={13} color="#6B7280" />
                         </button>
                       </div>
-                      <span style={{ color: "#D1D5DB", fontSize: 12 }}>{c.item.unit}</span>
-                      <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
+
+                      <span style={{ color: "#D1D5DB", fontSize: 11, flexShrink: 0 }}>{c.item.unit}</span>
+
+                      {/* Price editable */}
+                      <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 3, justifyContent: "flex-end" }}>
                         <span style={{ color: "#9CA3AF", fontSize: 12 }}>₹</span>
                         <input
-                          type="number" value={c.sell_price}
+                          type="number"
+                          value={c.sell_price}
                           onChange={e => updatePrice(c.item.id, Number(e.target.value))}
-                          style={{ width: 70, border: "2px solid #F3F4F6", borderRadius: 10, padding: "6px 8px", fontSize: 15, fontWeight: 800, color: "#111827", outline: "none", textAlign: "right", fontFamily: "var(--font-jakarta), sans-serif" }}
+                          style={{ width: 64, border: "2px solid #F3F4F6", borderRadius: 10, padding: "5px 6px", fontSize: 14, fontWeight: 800, color: "#111827", outline: "none", textAlign: "right", fontFamily: "var(--font-jakarta), sans-serif" }}
                           onFocus={e => e.target.style.borderColor = "#059669"}
                           onBlur={e => e.target.style.borderColor = "#F3F4F6"}
                         />
-                        <span style={{ color: "#9CA3AF", fontSize: 11 }}>/{c.item.unit}</span>
+                        <span style={{ color: "#9CA3AF", fontSize: 10, flexShrink: 0 }}>/{c.item.unit}</span>
                       </div>
-                      <p style={{ fontWeight: 900, fontSize: 15, color: "#111827", margin: 0, minWidth: 52, textAlign: "right" }}>
+
+                      {/* Line total */}
+                      <p style={{ fontWeight: 900, fontSize: 15, color: "#111827", margin: 0, minWidth: 48, textAlign: "right", flexShrink: 0 }}>
                         ₹{(c.quantity * c.sell_price).toFixed(0)}
                       </p>
                     </div>
@@ -271,15 +300,11 @@ export default function BillingPage() {
               ))}
             </div>
 
-            {/* Bill total — owner sees profit, customer never will */}
+            {/* Bill total */}
             <div style={{ background: "white", borderRadius: 20, border: "1.5px solid #EEEEE8", padding: "16px 20px", marginBottom: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <p style={{ color: "#9CA3AF", fontWeight: 600, fontSize: 14, margin: 0 }}>Total</p>
-                <p style={{ fontWeight: 900, fontSize: 22, color: "#111827", margin: 0 }}>₹{total.toFixed(0)}</p>
-              </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <p style={{ color: "#9CA3AF", fontWeight: 600, fontSize: 13, margin: 0 }}>Your profit</p>
-                <p style={{ fontWeight: 800, fontSize: 16, color: "#16A34A", margin: 0 }}>₹{profit.toFixed(0)}</p>
+                <p style={{ color: "#9CA3AF", fontWeight: 600, fontSize: 15, margin: 0 }}>Total</p>
+                <p style={{ fontWeight: 900, fontSize: 24, color: "#111827", margin: 0 }}>₹{total.toFixed(0)}</p>
               </div>
             </div>
 
@@ -306,7 +331,7 @@ export default function BillingPage() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FEF2F2", borderRadius: 12, padding: "10px 14px" }}>
                     <div>
                       <p style={{ fontWeight: 700, fontSize: 14, color: "#111827", margin: 0 }}>{selectedCustomer.name}</p>
-                      <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>Current balance: ₹{selectedCustomer.balance.toFixed(0)}</p>
+                      <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>Balance: ₹{selectedCustomer.balance.toFixed(0)}</p>
                     </div>
                     <button onClick={() => { setSelectedCustomer(null); setCustomerSearch(""); }} style={{ color: "#EF4444", fontSize: 20, background: "none", border: "none", cursor: "pointer" }}>×</button>
                   </div>

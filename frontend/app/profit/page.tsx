@@ -113,8 +113,8 @@ export default function ProfitPage() {
                       <ShoppingBag size={16} color="#16A34A" />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontWeight: 700, fontSize: 14, color: "#111827", margin: "0 0 2px" }}>
-                        Bill #{bill.id} · {bill.sales?.length ?? 0} items
+                     <p style={{ fontWeight: 700, fontSize: 14, color: "#111827", margin: "0 0 2px" }}>
+                        Bill #{bill.id} · {(bill as any).sales_count ?? bill.sales?.length ?? 0} items
                       </p>
                       <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>
                         {new Date(bill.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}

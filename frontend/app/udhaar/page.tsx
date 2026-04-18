@@ -146,7 +146,7 @@ export default function Home() {
           )}
         </div>
         <button
-          onClick={() => router.push("/add-customer")}
+          onClick={() => router.push("/udhaar/add-customer")}
           style={{
             width: 40, height: 40, flexShrink: 0,
             background: "#16A34A", border: "none", borderRadius: 12,

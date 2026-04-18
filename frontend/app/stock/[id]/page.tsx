@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getItem, getStockEntries, addStockEntry, updateItem, deleteItem, Item, StockEntry } from "@/lib/api";
+import {
+  getItem, getStockEntries, addStockEntry, updateItem, deleteItem, Item, StockEntry,
+} from "@/lib/api";
 import { ArrowLeft, Package, TrendingUp, TrendingDown, Edit2, Trash2 } from "lucide-react";
 
 export default function ItemDetail() {
@@ -16,6 +18,9 @@ export default function ItemDetail() {
   const [buyPrice, setBuyPrice] = useState("");
   const [sellPrice, setSellPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [restockMode, setRestockMode] = useState<"total" | "bulk">("total");
+  const [bulkPacks, setBulkPacks] = useState("");
+  const [bulkPerPack, setBulkPerPack] = useState("");
 
   const fetchData = async () => {
     const [i, e] = await Promise.all([getItem(Number(id)), getStockEntries(Number(id))]);
@@ -28,20 +33,37 @@ export default function ItemDetail() {
 
   const openModal = (type: "restock" | "count" | "edit") => {
     if (item) { setBuyPrice(String(item.buy_price)); setSellPrice(String(item.sell_price)); }
-    setQuantity("");
+    setQuantity(""); setBulkPacks(""); setBulkPerPack("");
+    setRestockMode("total");
     setModal(type);
   };
 
   const handleSubmit = async () => {
-    if (!quantity || Number(quantity) < 0) return;
+    let finalQty = Number(quantity);
+
+    if (modal === "restock" && restockMode === "bulk") {
+      if (!bulkPacks || !bulkPerPack) return;
+      finalQty = Number(bulkPacks) * Number(bulkPerPack);
+    } else if (modal !== "edit") {
+      if (!quantity || isNaN(Number(quantity)) || Number(quantity) < 0) return;
+    }
+
     setSubmitting(true);
     try {
       if (modal === "edit") {
         await updateItem(Number(id), { buy_price: Number(buyPrice), sell_price: Number(sellPrice) });
       } else {
-        await addStockEntry({ item_id: Number(id), type: modal!, quantity: Number(quantity), buy_price: Number(buyPrice), sell_price: Number(sellPrice) });
+        await addStockEntry({
+          item_id: Number(id),
+          type: modal!,
+          quantity: finalQty,
+          buy_price: Number(buyPrice),
+          sell_price: Number(sellPrice),
+        });
       }
       setModal(null);
+      setQuantity(""); setBulkPacks(""); setBulkPerPack("");
+      setRestockMode("total");
       await fetchData();
     } finally { setSubmitting(false); }
   };
@@ -66,6 +88,7 @@ export default function ItemDetail() {
 
   const margin = (((item.sell_price - item.buy_price) / item.buy_price) * 100).toFixed(1);
   const profitPerUnit = (item.sell_price - item.buy_price).toFixed(2);
+  const restockEntries = entries.filter(e => e.type === "restock");
 
   return (
     <div style={{ maxWidth: 384, margin: "0 auto", minHeight: "100vh", background: "#F7F8F5", paddingBottom: 20 }}>
@@ -74,6 +97,8 @@ export default function ItemDetail() {
       <div style={{ background: "linear-gradient(160deg, #1e3a5f 0%, #1e40af 50%, #2563EB 100%)", padding: "56px 20px 28px", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -60, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "relative" }}>
+
+          {/* Top bar */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <button onClick={() => router.back()} style={{ display: "flex", alignItems: "center", gap: 6, color: "#BAE6FD", fontSize: 13, fontWeight: 700, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-jakarta), sans-serif" }}>
               <ArrowLeft size={15} /> Back
@@ -88,22 +113,27 @@ export default function ItemDetail() {
             </div>
           </div>
 
+          {/* Item info */}
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
             <div style={{ width: 54, height: 54, borderRadius: 14, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Package size={26} color="white" />
             </div>
             <div>
               <h1 style={{ fontFamily: "var(--font-playfair), serif", color: "white", fontSize: 28, fontWeight: 900, margin: "0 0 2px", lineHeight: 1 }}>{item.name}</h1>
-              <p style={{ color: "#BAE6FD", fontSize: 13, fontWeight: 600, margin: 0 }}>per {item.unit}</p>
+              {item.brand && <p style={{ color: "#BAE6FD", fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>{item.brand}</p>}
+              <p style={{ color: "#BAE6FD", fontSize: 12, fontWeight: 500, margin: 0 }}>{item.category} · per {item.unit}</p>
             </div>
           </div>
 
-          {/* Stats */}
+          {/* Balance card */}
           <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 18 }}>
-            <p style={{ color: "#BAE6FD", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", margin: "0 0 8px" }}>Current Stock</p>
-            <p style={{ fontSize: 44, fontWeight: 900, color: item.current_stock < 5 ? "#FCA5A5" : "#93C5FD", margin: "0 0 14px", lineHeight: 1, fontFamily: "var(--font-playfair), serif" }}>
+            <p style={{ color: "#BAE6FD", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", margin: "0 0 6px" }}>Current Stock</p>
+            <p style={{ fontSize: 44, fontWeight: 900, color: item.current_stock < item.min_stock ? "#FCA5A5" : "#93C5FD", margin: "0 0 14px", lineHeight: 1, fontFamily: "var(--font-playfair), serif" }}>
               {item.current_stock} <span style={{ fontSize: 18 }}>{item.unit}</span>
             </p>
+            {item.current_stock < item.min_stock && (
+              <p style={{ color: "#FCA5A5", fontSize: 12, fontWeight: 600, margin: "0 0 10px" }}>⚠ Low stock — restock soon</p>
+            )}
             <div style={{ display: "flex", gap: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
               <div>
                 <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, margin: "0 0 2px" }}>Buy</p>
@@ -142,29 +172,30 @@ export default function ItemDetail() {
         </button>
       </div>
 
-      {/* History */}
+      {/* Restock History */}
       <div style={{ padding: "20px 16px" }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.15em", textTransform: "uppercase", margin: "0 0 12px" }}>
-          History ({entries.length} entries)
+          Restock History ({restockEntries.length} entries)
         </p>
 
-        {entries.length === 0 ? (
+        {restockEntries.length === 0 ? (
           <div style={{ background: "white", borderRadius: 24, border: "1.5px solid #EEEEE8", padding: "40px 20px", textAlign: "center" }}>
-            <p style={{ color: "#9CA3AF", fontWeight: 600, fontSize: 14, margin: 0 }}>No entries yet</p>
-            <p style={{ color: "#D1D5DB", fontSize: 12, margin: "4px 0 0" }}>Add a restock to get started</p>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+              <Package size={22} color="#93C5FD" />
+            </div>
+            <p style={{ color: "#6B7280", fontWeight: 600, fontSize: 14, margin: "0 0 4px" }}>No restock history yet</p>
+            <p style={{ color: "#D1D5DB", fontSize: 12, margin: 0 }}>Tap Restock to add stock</p>
           </div>
         ) : (
           <div style={{ background: "white", borderRadius: 24, border: "1.5px solid #EEEEE8", boxShadow: "0 2px 16px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-            {entries.map((e, idx) => (
+            {restockEntries.map((e, idx) => (
               <div key={e.id}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px" }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: e.type === "restock" ? "#EFF6FF" : "#F0FDF4" }}>
-                    {e.type === "restock" ? <TrendingUp size={16} color="#2563EB" /> : <TrendingDown size={16} color="#16A34A" />}
+                  <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#EFF6FF" }}>
+                    <TrendingUp size={16} color="#2563EB" />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontWeight: 700, fontSize: 14, margin: "0 0 2px", color: e.type === "restock" ? "#2563EB" : "#16A34A" }}>
-                      {e.type === "restock" ? "Restocked" : "Stock Count"}
-                    </p>
+                    <p style={{ fontWeight: 700, fontSize: 14, color: "#2563EB", margin: "0 0 2px" }}>Restocked</p>
                     <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>
                       Buy ₹{e.buy_price} · Sell ₹{e.sell_price}
                     </p>
@@ -172,11 +203,11 @@ export default function ItemDetail() {
                       {new Date(e.noted_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                     </p>
                   </div>
-                  <p style={{ fontWeight: 900, fontSize: 15, margin: 0, color: e.type === "restock" ? "#2563EB" : "#16A34A" }}>
-                    {e.type === "restock" ? "+" : ""}{e.quantity} {item.unit}
+                  <p style={{ fontWeight: 900, fontSize: 15, margin: 0, color: "#2563EB" }}>
+                    +{e.quantity} {item.unit}
                   </p>
                 </div>
-                {idx < entries.length - 1 && <div style={{ height: 1, background: "#F9FAFB", margin: "0 20px" }} />}
+                {idx < restockEntries.length - 1 && <div style={{ height: 1, background: "#F9FAFB", margin: "0 20px" }} />}
               </div>
             ))}
           </div>
@@ -185,7 +216,10 @@ export default function ItemDetail() {
 
       {/* Modal */}
       {modal && (
-        <div onClick={(e) => e.target === e.currentTarget && setModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "flex-end", zIndex: 50 }}>
+        <div
+          onClick={(e) => e.target === e.currentTarget && setModal(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "flex-end", zIndex: 50 }}
+        >
           <div style={{ background: "white", width: "100%", maxWidth: 384, margin: "0 auto", borderRadius: "28px 28px 0 0", padding: "20px 20px 40px", boxShadow: "0 -8px 40px rgba(0,0,0,0.15)" }}>
             <div style={{ width: 36, height: 4, background: "#E5E7EB", borderRadius: 4, margin: "0 auto 24px" }} />
 
@@ -193,16 +227,89 @@ export default function ItemDetail() {
               {modal === "restock" ? "Restock" : modal === "count" ? "Stock Count" : "Edit Prices"}
             </h2>
             <p style={{ fontSize: 13, color: "#9CA3AF", margin: "0 0 20px" }}>
-              {modal === "restock" ? `How much ${item.name} came in?` : modal === "count" ? "What's the current quantity?" : "Update buy and sell price"}
+              {modal === "restock" ? `Adding stock for ${item.name}` : modal === "count" ? "What's the current quantity on shelf?" : "Update buy and sell price"}
             </p>
 
-            {modal !== "edit" && (
+            {/* Restock */}
+            {modal === "restock" && (
               <>
                 <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.15em", textTransform: "uppercase", margin: "0 0 8px" }}>
-                  Quantity ({item.unit})
+                  How are you adding stock?
+                </p>
+                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                  <button
+                    onClick={() => setRestockMode("total")}
+                    style={{ flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, border: `2px solid ${restockMode === "total" ? "#2563EB" : "#F3F4F6"}`, background: restockMode === "total" ? "#EFF6FF" : "white", color: restockMode === "total" ? "#2563EB" : "#9CA3AF", cursor: "pointer", fontFamily: "var(--font-jakarta), sans-serif" }}
+                  >
+                    Total {item.unit}
+                  </button>
+                  <button
+                    onClick={() => setRestockMode("bulk")}
+                    style={{ flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, border: `2px solid ${restockMode === "bulk" ? "#2563EB" : "#F3F4F6"}`, background: restockMode === "bulk" ? "#EFF6FF" : "white", color: restockMode === "bulk" ? "#2563EB" : "#9CA3AF", cursor: "pointer", fontFamily: "var(--font-jakarta), sans-serif" }}
+                  >
+                    Bags / Packs
+                  </button>
+                </div>
+
+                {restockMode === "total" ? (
+                  <>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.15em", textTransform: "uppercase", margin: "0 0 8px" }}>
+                      Quantity ({item.unit})
+                    </p>
+                    <input
+                      type="number" placeholder="0" value={quantity}
+                      onChange={e => setQuantity(e.target.value)} autoFocus
+                      style={{ width: "100%", border: "2px solid #F3F4F6", borderRadius: 14, padding: "14px 16px", fontSize: 32, fontWeight: 900, color: "#111827", outline: "none", boxSizing: "border-box", fontFamily: "var(--font-jakarta), sans-serif", marginBottom: 16 }}
+                      onFocus={e => e.target.style.borderColor = "#2563EB"}
+                      onBlur={e => e.target.style.borderColor = "#F3F4F6"}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 8px" }}>No. of Bags/Packs</p>
+                        <input
+                          type="number" placeholder="0" value={bulkPacks}
+                          onChange={e => setBulkPacks(e.target.value)} autoFocus
+                          style={{ width: "100%", border: "2px solid #F3F4F6", borderRadius: 14, padding: "12px 14px", fontSize: 24, fontWeight: 900, color: "#111827", outline: "none", boxSizing: "border-box", fontFamily: "var(--font-jakarta), sans-serif" }}
+                          onFocus={e => e.target.style.borderColor = "#2563EB"}
+                          onBlur={e => e.target.style.borderColor = "#F3F4F6"}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 8px" }}>{item.unit} per Bag</p>
+                        <input
+                          type="number" placeholder="0" value={bulkPerPack}
+                          onChange={e => setBulkPerPack(e.target.value)}
+                          style={{ width: "100%", border: "2px solid #F3F4F6", borderRadius: 14, padding: "12px 14px", fontSize: 24, fontWeight: 900, color: "#111827", outline: "none", boxSizing: "border-box", fontFamily: "var(--font-jakarta), sans-serif" }}
+                          onFocus={e => e.target.style.borderColor = "#2563EB"}
+                          onBlur={e => e.target.style.borderColor = "#F3F4F6"}
+                        />
+                      </div>
+                    </div>
+                    {bulkPacks && bulkPerPack && Number(bulkPacks) > 0 && Number(bulkPerPack) > 0 && (
+                      <div style={{ background: "#EFF6FF", borderRadius: 12, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <p style={{ fontSize: 13, color: "#2563EB", fontWeight: 600, margin: 0 }}>Total to add</p>
+                        <p style={{ fontSize: 18, fontWeight: 900, color: "#2563EB", margin: 0 }}>
+                          {(Number(bulkPacks) * Number(bulkPerPack)).toFixed(1)} {item.unit}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Count */}
+            {modal === "count" && (
+              <>
+                <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.15em", textTransform: "uppercase", margin: "0 0 8px" }}>
+                  Current Quantity ({item.unit})
                 </p>
                 <input
-                  type="number" placeholder="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} autoFocus
+                  type="number" placeholder="0" value={quantity}
+                  onChange={e => setQuantity(e.target.value)} autoFocus
                   style={{ width: "100%", border: "2px solid #F3F4F6", borderRadius: 14, padding: "14px 16px", fontSize: 32, fontWeight: 900, color: "#111827", outline: "none", boxSizing: "border-box", fontFamily: "var(--font-jakarta), sans-serif", marginBottom: 16 }}
                   onFocus={e => e.target.style.borderColor = "#2563EB"}
                   onBlur={e => e.target.style.borderColor = "#F3F4F6"}
@@ -210,29 +317,38 @@ export default function ItemDetail() {
               </>
             )}
 
-            <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.15em", textTransform: "uppercase", margin: "0 0 8px" }}>Buy Price (₹)</p>
-                <input
-                  type="number" placeholder="0" value={buyPrice} onChange={(e) => setBuyPrice(e.target.value)}
-                  style={{ width: "100%", border: "2px solid #F3F4F6", borderRadius: 14, padding: "12px 14px", fontSize: 18, fontWeight: 800, color: "#111827", outline: "none", boxSizing: "border-box", fontFamily: "var(--font-jakarta), sans-serif" }}
-                  onFocus={e => e.target.style.borderColor = "#2563EB"}
-                  onBlur={e => e.target.style.borderColor = "#F3F4F6"}
-                />
+            {/* Prices — shown for restock and edit */}
+            {(modal === "restock" || modal === "edit") && (
+              <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.15em", textTransform: "uppercase", margin: "0 0 8px" }}>Buy Price (₹)</p>
+                  <input
+                    type="number" placeholder="0" value={buyPrice}
+                    onChange={e => setBuyPrice(e.target.value)}
+                    style={{ width: "100%", border: "2px solid #F3F4F6", borderRadius: 14, padding: "12px 14px", fontSize: 18, fontWeight: 800, color: "#111827", outline: "none", boxSizing: "border-box", fontFamily: "var(--font-jakarta), sans-serif" }}
+                    onFocus={e => e.target.style.borderColor = "#2563EB"}
+                    onBlur={e => e.target.style.borderColor = "#F3F4F6"}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.15em", textTransform: "uppercase", margin: "0 0 8px" }}>Sell Price (₹)</p>
+                  <input
+                    type="number" placeholder="0" value={sellPrice}
+                    onChange={e => setSellPrice(e.target.value)}
+                    style={{ width: "100%", border: "2px solid #F3F4F6", borderRadius: 14, padding: "12px 14px", fontSize: 18, fontWeight: 800, color: "#111827", outline: "none", boxSizing: "border-box", fontFamily: "var(--font-jakarta), sans-serif" }}
+                    onFocus={e => e.target.style.borderColor = "#2563EB"}
+                    onBlur={e => e.target.style.borderColor = "#F3F4F6"}
+                  />
+                </div>
               </div>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.15em", textTransform: "uppercase", margin: "0 0 8px" }}>Sell Price (₹)</p>
-                <input
-                  type="number" placeholder="0" value={sellPrice} onChange={(e) => setSellPrice(e.target.value)}
-                  style={{ width: "100%", border: "2px solid #F3F4F6", borderRadius: 14, padding: "12px 14px", fontSize: 18, fontWeight: 800, color: "#111827", outline: "none", boxSizing: "border-box", fontFamily: "var(--font-jakarta), sans-serif" }}
-                  onFocus={e => e.target.style.borderColor = "#2563EB"}
-                  onBlur={e => e.target.style.borderColor = "#F3F4F6"}
-                />
-              </div>
-            </div>
+            )}
 
+            {/* Buttons */}
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setModal(null)} style={{ flex: 1, border: "2px solid #F3F4F6", background: "white", borderRadius: 14, padding: "14px 0", fontSize: 14, fontWeight: 700, color: "#9CA3AF", cursor: "pointer", fontFamily: "var(--font-jakarta), sans-serif" }}>
+              <button
+                onClick={() => { setModal(null); setQuantity(""); setBulkPacks(""); setBulkPerPack(""); setRestockMode("total"); }}
+                style={{ flex: 1, border: "2px solid #F3F4F6", background: "white", borderRadius: 14, padding: "14px 0", fontSize: 14, fontWeight: 700, color: "#9CA3AF", cursor: "pointer", fontFamily: "var(--font-jakarta), sans-serif" }}
+              >
                 Cancel
               </button>
               <button

@@ -6,6 +6,7 @@ from app.models.item import Item
 from app.models.stock_entry import StockEntry
 from app.schemas.sale import QuickSellInput, BillInput
 
+
 def quick_sell(db: Session, data: QuickSellInput):
     item = db.query(Item).filter(Item.id == data.item_id).first()
     if not item:
@@ -26,7 +27,6 @@ def quick_sell(db: Session, data: QuickSellInput):
     )
     db.add(sale)
 
-    # Deduct stock — add a count entry
     new_stock = current_stock - data.quantity
     entry = StockEntry(
         item_id=data.item_id,
@@ -40,6 +40,7 @@ def quick_sell(db: Session, data: QuickSellInput):
     db.commit()
     db.refresh(sale)
     return sale, None
+
 
 def create_bill(db: Session, data: BillInput):
     total_amount = 0.0
@@ -58,12 +59,10 @@ def create_bill(db: Session, data: BillInput):
         total_profit += profit
         sales_data.append((item, sale_item, profit, current_stock))
 
-    # Create bill
     bill = Bill(total_amount=total_amount, total_profit=total_profit)
     db.add(bill)
     db.flush()
 
-    # Create sales + deduct stock
     for item, sale_item, profit, current_stock in sales_data:
         sale = Sale(
             item_id=sale_item.item_id,
@@ -90,6 +89,7 @@ def create_bill(db: Session, data: BillInput):
     db.refresh(bill)
     return bill, None
 
+
 def get_profit_summary(db: Session):
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -113,49 +113,37 @@ def get_profit_summary(db: Session):
         "year_revenue": sum_revenue(year_start),
     }
 
-def get_recent_bills(db: Session, limit: int = 20):
-    return db.query(Bill).order_by(Bill.created_at.desc()).limit(limit).all()
 
-def _get_current_stock(db: Session, item_id: int) -> float:
-    latest_count = (
-        db.query(StockEntry)
-        .filter(StockEntry.item_id == item_id, StockEntry.type == "count")
-        .order_by(StockEntry.noted_at.desc())
-        .first()
-    )
-    if latest_count:
-        restocks_after = (
-            db.query(StockEntry)
-            .filter(StockEntry.item_id == item_id, StockEntry.type == "restock", StockEntry.noted_at > latest_count.noted_at)
-            .all()
-        )
-        total = float(latest_count.quantity)
-        for r in restocks_after:
-            total += float(r.quantity)
-        return round(total, 3)
-    else:
-        restocks = db.query(StockEntry).filter(StockEntry.item_id == item_id, StockEntry.type == "restock").all()
-        return round(sum(float(r.quantity) for r in restocks), 3)
-    
-    def get_today_summary(db: Session):
-     now = datetime.now(timezone.utc)
+def get_recent_bills(db: Session, limit: int = 20):
+    bills = db.query(Bill).order_by(Bill.created_at.desc()).limit(limit).all()
+    result = []
+    for bill in bills:
+        from app.models.sale import Sale as SaleModel
+        sales_count = db.query(SaleModel).filter(SaleModel.bill_id == bill.id).count()
+        result.append({
+            "id": bill.id,
+            "total_amount": float(bill.total_amount),
+            "total_profit": float(bill.total_profit),
+            "created_at": bill.created_at,
+            "sales_count": sales_count,
+        })
+    return result
+
+
+def get_today_summary(db: Session):
+    now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # Today's bills
     today_bills = db.query(Bill).filter(Bill.created_at >= today_start).all()
-
-    # Today's sales
     today_sales = db.query(Sale).filter(Sale.sold_at >= today_start).all()
 
-    # Revenue + profit
     revenue = round(sum(float(s.sell_price) * float(s.quantity_sold) for s in today_sales), 2)
     profit = round(sum(float(s.profit) for s in today_sales), 2)
 
-    # Top selling items
     item_totals: dict = {}
     for s in today_sales:
         if s.item_id not in item_totals:
-            item_totals[s.item_id] = {"qty": 0, "revenue": 0}
+            item_totals[s.item_id] = {"qty": 0.0, "revenue": 0.0}
         item_totals[s.item_id]["qty"] += float(s.quantity_sold)
         item_totals[s.item_id]["revenue"] += float(s.sell_price) * float(s.quantity_sold)
 
@@ -172,7 +160,6 @@ def _get_current_stock(db: Session, item_id: int) -> float:
                 "revenue": round(data["revenue"], 2),
             })
 
-    # Udhaar today
     from app.models.transaction import Transaction
     today_udhaar = db.query(Transaction).filter(
         Transaction.type == "credit",
@@ -188,3 +175,25 @@ def _get_current_stock(db: Session, item_id: int) -> float:
         "udhaar_given": udhaar_total,
         "top_items": top_items,
     }
+
+
+def _get_current_stock(db: Session, item_id: int) -> float:
+    latest_count = (
+        db.query(StockEntry)
+        .filter(StockEntry.item_id == item_id, StockEntry.type == "count")
+        .order_by(StockEntry.noted_at.desc())
+        .first()
+    )
+    if latest_count:
+        restocks_after = (
+            db.query(StockEntry)
+            .filter(
+                StockEntry.item_id == item_id,
+                StockEntry.type == "restock",
+                StockEntry.noted_at > latest_count.noted_at
+            )
+            .all()
+        )
+        return round(float(latest_count.quantity) + sum(float(r.quantity) for r in restocks_after), 3)
+    restocks = db.query(StockEntry).filter(StockEntry.item_id == item_id, StockEntry.type == "restock").all()
+    return round(sum(float(r.quantity) for r in restocks), 3)

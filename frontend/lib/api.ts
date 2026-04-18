@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://10.92.71.203:8000",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://10.103.99.203:8000",
 });
 
 export interface Customer {
@@ -63,6 +63,7 @@ export interface Bill {
   total_profit: number;
   created_at: string;
   sales: Sale[];
+  sales_count?: number;
 }
 
 export interface ProfitSummary {
