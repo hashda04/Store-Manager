@@ -99,9 +99,7 @@ export default function Landing() {
         <div style={{ position: "absolute", top: -60, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", bottom: -30, left: -20, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.03)" }} />
         <div style={{ position: "relative" }}>
-          <p style={{ color: "#6EE7B7", fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", margin: "0 0 6px" }}>Welcome to</p>
-          <h1 style={{ fontFamily: "var(--font-playfair), serif", color: "white", fontSize: 40, fontWeight: 900, lineHeight: 1, margin: "0 0 4px" }}>Appa's Store</h1>
-          <p style={{ fontFamily: "var(--font-playfair), serif", color: "#34D399", fontSize: 18, fontWeight: 700, margin: "0 0 6px" }}>Manager</p>
+          <h1 style={{ fontFamily: "var(--font-playfair), serif", color: "white", fontSize: 40, fontWeight: 900, lineHeight: 1, margin: "0 0 4px" }}>Mayura Store</h1>
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: 500, margin: 0 }}>
             {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
           </p>
