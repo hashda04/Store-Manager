@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://10.97.167.203:8000",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
 });
 
 export interface Customer {
