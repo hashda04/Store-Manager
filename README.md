@@ -7,7 +7,7 @@
 # 🏪 Store Manager
 ### A full-stack store management PWA — built for a real business, used by a real person.
 
-[**Live Demo →**](https://store-manager-vxa9.vercel.app) &nbsp;|&nbsp; [**Backend API →**](https://store-manager-production-dee3.up.railway.app/docs)
+*Live deployment available on request*
 
 </div>
 
