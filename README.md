@@ -7,7 +7,7 @@
 # 🏪 Store Manager
 ### A full-stack store management PWA — built for a real business, used by a real person.
 
-*Live deployment available on request*
+
 
 </div>
 
