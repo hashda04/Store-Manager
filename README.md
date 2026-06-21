@@ -1,9 +1,5 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/Status-Live%20in%20Production-brightgreen?style=for-the-badge" />
-<img src="https://img.shields.io/badge/Real%20User-Father's%20Provision%20Store-orange?style=for-the-badge" />
-<img src="https://img.shields.io/badge/Type-Full%20Stack%20PWA-blue?style=for-the-badge" />
-
 # 🏪 Store Manager
 ### A full-stack store management PWA — built for a real business, used by a real person.
 
